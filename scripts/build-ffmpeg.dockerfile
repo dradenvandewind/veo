@@ -21,7 +21,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     autoconf automake build-essential cmake git-core \
-    libtool meson nasm ninja-build pkg-config wget yasm \
+    libtool meson nasm ninja-build pkg-config wget yasm curl xxd\
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -73,10 +73,37 @@ RUN git clone --depth 1 -b v1.15.0 https://chromium.googlesource.com/webm/libvpx
 # ── libvmaf ───────────────────────────────────────────────────────
 # Built as static lib; FFmpeg links against it via --enable-libvmaf.
 # libvmaf 3.0 embeds VMAF models in the binary — no external model files needed.
+#7e16db0a2ccdd8547680b9ed0b3e52691e8ecee7
+
 RUN git clone --depth 1 -b v3.0.0 https://github.com/Netflix/vmaf.git && \
     cd vmaf/libvmaf && \
-    meson setup build --prefix=/usr/local --default-library=static --buildtype=release && \
-    ninja -C build && ninja -C build install
+    meson setup build \
+        --prefix=/usr/local \
+        --default-library=static \
+        --buildtype=release \
+        -Dbuilt_in_models=true && \
+    ninja -C build && ninja -C build install && ldconfig
+
+# RUN git clone https://github.com/Netflix/vmaf.git && \
+#       cd vmaf/libvmaf &&  git checkout 7e16db0a2ccdd8547680b9ed0b3e52691e8ecee7 \
+#      meson setup build --prefix=/usr/local --default-library=static --buildtype=release && \
+#      ninja -C build && ninja -C build install
+
+RUN mkdir -p /usr/local/share/vmaf/models && \
+    curl -L -o /usr/local/share/vmaf/models/vmaf_v0.6.1.json \
+    https://github.com/Netflix/vmaf/raw/v3.0.0/model/vmaf_v0.6.1.json
+
+RUN curl -L -o /usr/local/share/vmaf/models/vmaf_4k_v0.6.1.json \
+    https://github.com/Netflix/vmaf/raw/v3.0.0/model/vmaf_4k_v0.6.1.json
+
+RUN mkdir -p /usr/share/vmaf/models && \
+    curl -L -o /usr/share/vmaf/models/vmaf_v0.6.1.json \
+    https://github.com/Netflix/vmaf/raw/v3.0.0/model/vmaf_v0.6.1.json
+
+RUN curl -L -o /usr/share/vmaf/models/vmaf_4k_v0.6.1.json \
+    https://github.com/Netflix/vmaf/raw/v3.0.0/model/vmaf_4k_v0.6.1.json
+    
+ENV VMAF_MODEL_PATH=/usr/local/share/vmaf/models/vmaf_v0.6.1.json
 
 # ── opus (audio) ──────────────────────────────────────────────────
 RUN git clone --depth 1 -b v1.5.2 https://github.com/xiph/opus.git && \
@@ -84,7 +111,7 @@ RUN git clone --depth 1 -b v1.5.2 https://github.com/xiph/opus.git && \
     autoreconf -fis && \
     ./configure --prefix=/usr/local --enable-static --disable-shared --disable-doc --disable-extra-programs && \
     make -j$(nproc) && make install
-
+ENV PKG_CONFIG_PATH="/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 # ── FFmpeg ────────────────────────────────────────────────────────
 RUN git clone --depth 1 -b n8.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src && \
     cd ffmpeg-src && \
@@ -122,5 +149,17 @@ RUN ffmpeg -version && \
 
 # ── Output stage ──────────────────────────────────────────────────
 FROM scratch AS export
+
+ENV VMAF_MODEL_PATH=./usr/local/share/vmaf/models/vmaf_v0.6.1.json
+# RUN mkdir -p /usr/local/share/vmaf/models && \
+#     curl -L -o /usr/local/share/vmaf/models/vmaf_v0.6.1.json \
+#     https://github.com/Netflix/vmaf/raw/v3.0.0/model/vmaf_v0.6.1.json
+
+# RUN curl -L -o /usr/local/share/vmaf/models/vmaf_4k_v0.6.1.json \
+#     https://github.com/Netflix/vmaf/raw/v3.0.0/model/vmaf_4k_v0.6.1.json
+
+
 COPY --from=build /usr/local/bin/ffmpeg /ffmpeg
 COPY --from=build /usr/local/bin/ffprobe /ffprobe
+COPY --from=build /usr/local/share/vmaf/models/ /usr/local/share/vmaf/models/
+#COPY --from=build /usr /usr

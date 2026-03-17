@@ -18,6 +18,9 @@ func FFmpegPath() string {
 	if p := localBinary("ffmpeg"); p != "" {
 		return p
 	}
+	if p := localBinary("/media/erwan/T72/sandbox/veo/bin/ffmpeg/ffmpeg"); p != "" {
+		return p
+	}
 	return "ffmpeg"
 }
 
@@ -31,6 +34,9 @@ func FFprobePath() string {
 		return p
 	}
 	if p := localBinary("ffprobe"); p != "" {
+		return p
+	}
+	if p := localBinary("/media/erwan/T72/sandbox/veo/bin/ffmpeg/ffprobe"); p != "" {
 		return p
 	}
 	return "ffprobe"
