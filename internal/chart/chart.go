@@ -516,6 +516,10 @@ func shortCodecName(codec string) string {
 		return "AV1"
 	case "libvpx-vp9":
 		return "VP9"
+	case "libvvenc":
+		return "VVENC"
+	case "libxeve":
+		return "XEVE"	
 	default:
 		return codec
 	}

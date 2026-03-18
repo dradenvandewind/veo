@@ -29,7 +29,7 @@ var (
 
 func init() {
 	encodeCmd.Flags().StringVarP(&encodeOutput, "output", "o", "", "output file path")
-	encodeCmd.Flags().StringVar(&encodeCodec, "codec", "libx264", "video codec (libx264, libx265, libsvtav1)")
+	encodeCmd.Flags().StringVar(&encodeCodec, "codec", "libx264", "video codec (libx264, libx265, libsvtav1, libvvenc, libxeve)")
 	encodeCmd.Flags().IntVar(&encodeCRF, "crf", 23, "CRF value")
 	encodeCmd.Flags().StringVar(&encodePreset, "preset", "medium", "encoding preset")
 	encodeCmd.Flags().IntVar(&encodeWidth, "width", 0, "output width (0 = keep original)")

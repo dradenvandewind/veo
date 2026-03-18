@@ -56,7 +56,7 @@ func init() {
 	pertitleAnalyzeCmd.Flags().StringVarP(&ptInput, "input", "i", "", "source video file")
 	pertitleAnalyzeCmd.Flags().StringVarP(&ptOutput, "output", "o", "", "output JSON file for results (optional)")
 	pertitleAnalyzeCmd.Flags().StringVar(&ptChartDir, "charts", "", "directory to save PNG chart images (optional)")
-	pertitleAnalyzeCmd.Flags().StringSliceVar(&ptCodecs, "codecs", []string{"libx264"}, "codecs to test (libx264, libx265, libsvtav1)")
+	pertitleAnalyzeCmd.Flags().StringSliceVar(&ptCodecs, "codecs", []string{"libx264"}, "codecs to test (libx264, libx265, libsvtav1, libvvenc, libxeve)")
 	pertitleAnalyzeCmd.Flags().StringSliceVar(&ptResolutions, "resolutions", []string{"480p", "720p", "1080p"}, "resolutions to test")
 	pertitleAnalyzeCmd.Flags().IntSliceVar(&ptCRFValues, "crf-values", []int{18, 22, 26, 30, 34, 38, 42}, "CRF values to test")
 	pertitleAnalyzeCmd.Flags().StringVar(&ptPreset, "preset", "veryfast", "encoding preset for trial encodes")

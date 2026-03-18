@@ -19,6 +19,8 @@ const (
 	CodecX264   Codec = "libx264"
 	CodecX265   Codec = "libx265"
 	CodecSVTAV1 Codec = "libsvtav1"
+	CodecVVENC  Codec = "libvvenc"
+	CodecXEVE   Codec = "libxeve"
 )
 
 // Resolution represents a video resolution.
