@@ -18,6 +18,10 @@ FROM debian:bookworm-slim AS build
 
 ARG DEBIAN_FRONTEND=noninteractive
 
+ENV VVENC_TAG=v1.13.1-rc1
+ENV XEVE_TAG=v0.5.1
+ENV XEVD_TAG=v0.5.0
+
 # Build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
     autoconf automake build-essential cmake git-core \
@@ -69,6 +73,54 @@ RUN git clone --depth 1 -b v1.15.0 https://chromium.googlesource.com/webm/libvpx
         --enable-vp9-highbitdepth \
         --disable-examples --disable-unit-tests --disable-docs && \
     make -j$(nproc) && make install
+
+    # Build vvenc
+RUN git clone https://github.com/fraunhoferhhi/vvenc.git vvenc && \
+    cd vvenc && \
+    git checkout $VVENC_TAG && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig
+
+    # Build xeve
+# RUN git clone https://github.com/mpeg5/xeve && \
+#     cd xeve && \
+#     git checkout tags/$XEVE_TAG && \
+#     mkdir build && \
+#     cd build && \
+#     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_SHARED=OFF&& \
+#     make -j$(nproc) && \
+#     make install && \
+#     ldconfig && \
+#     make package && \
+#      ldconfig
+
+# # Build xevd
+# RUN git clone https://github.com/mpeg5/xevd.git && \
+#     cd xevd && \
+#     git checkout tags/$XEVD_TAG && \
+#     mkdir build && \
+#     cd build && \
+#     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_SHARED=OFF && \
+#     make -j$(nproc) && \
+#     make install && \
+#     ldconfig && \
+#     make package && \
+#     ldconfig
+# RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/xevd.conf && ldconfig
+
+RUN wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.bz2 && \
+    tar xjvf nasm-2.16.03.tar.bz2 && \
+    cd nasm-2.16.03 && \
+    ./autogen.sh && \
+    ./configure --prefix="/usr" && \
+    make -j$(nproc) && \
+    make install
+
+
 
 # ── libvmaf ───────────────────────────────────────────────────────
 # Built as static lib; FFmpeg links against it via --enable-libvmaf.
@@ -126,6 +178,7 @@ RUN git clone --depth 1 -b n8.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-sr
         --enable-libx264 \
         --enable-libx265 \
         --enable-libsvtav1 \
+        --enable-libvvenc \
         --enable-libdav1d \
         --enable-libvpx \
         --enable-libvmaf \
@@ -162,4 +215,5 @@ ENV VMAF_MODEL_PATH=./usr/local/share/vmaf/models/vmaf_v0.6.1.json
 COPY --from=build /usr/local/bin/ffmpeg /ffmpeg
 COPY --from=build /usr/local/bin/ffprobe /ffprobe
 COPY --from=build /usr/local/share/vmaf/models/ /usr/local/share/vmaf/models/
+COPY --from=build /usr/local/lib/libxevd.so* /usr/local/lib/
 #COPY --from=build /usr /usr
