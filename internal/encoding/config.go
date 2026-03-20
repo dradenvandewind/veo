@@ -54,7 +54,7 @@ func (c Config) Validate() error {
 	}
 	for _, codec := range c.Codecs {
 		switch codec {
-		case ffmpeg.CodecX264, ffmpeg.CodecX265, ffmpeg.CodecSVTAV1,ffmpeg.CodecVVENC,ffmpeg.CodecXEVE:
+		case ffmpeg.CodecX264, ffmpeg.CodecX265, ffmpeg.CodecSVTAV1, ffmpeg.CodecVVENC, ffmpeg.CodecXEVE:
 		default:
 			return fmt.Errorf("unknown codec: %s", codec)
 		}
@@ -79,80 +79,51 @@ func (c Config) EffectiveParallel() int {
 }
 
 // PresetForCodec maps a generic preset name to codec-specific presets.
-// x264/x265 use named presets (ultrafast, veryfast, medium, slow, etc.)
+// x264/x265/xeve use named presets (ultrafast, veryfast, medium, slow, etc.) — no mapping needed.
 // SVT-AV1 uses numeric presets (0=slowest/best to 13=fastest).
-
-// func PresetForCodec(codec ffmpeg.Codec, preset string) string {
-// 	if codec != ffmpeg.CodecSVTAV1 {
-// 		return preset
-// 	}
-// 	switch preset {
-// 	case "ultrafast":
-// 		return "12"
-// 	case "superfast":
-// 		return "11"
-// 	case "veryfast":
-// 		return "10"
-// 	case "faster":
-// 		return "9"
-// 	case "fast":
-// 		return "8"
-// 	case "medium":
-// 		return "6"
-// 	case "slow":
-// 		return "4"
-// 	case "slower":
-// 		return "2"
-// 	case "veryslow":
-// 		return "0"
-// 	default:
-// 		return preset
-// 	}
-// }
-
+// vvenc uses named presets but with a different set: faster, fast, medium, slow, slower.
 func PresetForCodec(codec ffmpeg.Codec, preset string) string {
-    switch codec {
-
-    case ffmpeg.CodecSVTAV1:
-        // ... mapping existant ...
+	switch codec {
+	case ffmpeg.CodecSVTAV1:
 		switch preset {
-			case "ultrafast":
-				return "12"
-			case "superfast":
-				return "11"
-			case "veryfast":
-				return "10"
-			case "faster":
-				return "9"
-			case "fast":
-				return "8"
-			case "medium":
-				return "6"
-			case "slow":
-				return "4"
-			case "slower":
-				return "2"
-			case "veryslow":
-				return "0"
-			default:
-				return preset
-			}
-    case ffmpeg.CodecVVENC:
-        // vvenc accepte : faster, fast, medium, slow, slower
-        switch preset {
-        case "ultrafast", "superfast":
-            return "faster"
-        case "veryfast", "faster":
-            return "fast"
-        case "medium":
-            return "medium"
-        case "slow", "slower":
-            return "slow"
-        case "veryslow":
-            return "slower"
-        default:
-            return preset
-        }
-    }
-    return preset
+		case "ultrafast":
+			return "12"
+		case "superfast":
+			return "11"
+		case "veryfast":
+			return "10"
+		case "faster":
+			return "9"
+		case "fast":
+			return "8"
+		case "medium":
+			return "6"
+		case "slow":
+			return "4"
+		case "slower":
+			return "2"
+		case "veryslow":
+			return "0"
+		default:
+			return preset
+		}
+	case ffmpeg.CodecVVENC:
+		switch preset {
+		case "ultrafast", "superfast":
+			return "faster"
+		case "veryfast", "faster":
+			return "fast"
+		case "medium":
+			return "medium"
+		case "slow", "slower":
+			return "slow"
+		case "veryslow":
+			return "slower"
+		default:
+			return preset
+		}
+	default:
+		// x264, x265, xeve : presets identiques, pas de mapping nécessaire
+		return preset
+	}
 }
