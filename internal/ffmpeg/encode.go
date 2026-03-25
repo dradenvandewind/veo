@@ -243,7 +243,15 @@ func buildEncodeArgs(job EncodeJob) []string {
 		args = append(args, "-bufsize", fmt.Sprintf("%.0fk", job.TargetBitrate*4))
 	default:
 		// lCRF: constant quality with encoder R-D optimization (default)
-		args = append(args, "-crf", strconv.Itoa(job.CRF))
+		//args = append(args, "-crf", strconv.Itoa(job.CRF))
+		switch job.Codec {
+			case CodecVVENC:
+				args = append(args, "-q:v", strconv.Itoa(job.CRF))
+			case CodecXEVE:
+				args = append(args, "-qp", strconv.Itoa(job.CRF))
+			default:
+				args = append(args, "-crf", strconv.Itoa(job.CRF))
+			}
 	}
 
 	if job.Preset != "" {

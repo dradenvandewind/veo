@@ -35,7 +35,10 @@ WORKDIR /build
 RUN git clone --depth 1 https://github.com/mirror/x264.git && \
     cd x264 && \
     ./configure --prefix=/usr/local --enable-static --enable-pic --disable-cli && \
-    make -j$(nproc) && make install
+    make -j$(nproc) && make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/x264.conf && \
+    ldconfig
 
 # ── x265 ──────────────────────────────────────────────────────────
 RUN git clone --depth 1 -b 4.1 https://bitbucket.org/multicoreware/x265_git.git x265 && \
@@ -46,7 +49,10 @@ RUN git clone --depth 1 -b 4.1 https://bitbucket.org/multicoreware/x265_git.git 
         -DENABLE_CLI=OFF \
         -DSTATIC_LINK_CRT=ON \
         ../../source && \
-    make -j$(nproc) && make install
+    make -j$(nproc) && make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/x265.conf && \
+    ldconfig
 
 # ── SVT-AV1 ──────────────────────────────────────────────────────
 RUN git clone --depth 1 -b v4.0.0 https://gitlab.com/AOMediaCodec/SVT-AV1.git && \
@@ -57,13 +63,21 @@ RUN git clone --depth 1 -b v4.0.0 https://gitlab.com/AOMediaCodec/SVT-AV1.git &&
         -DBUILD_APPS=OFF \
         -DBUILD_DEC=ON \
         .. && \
-    make -j$(nproc) && make install
+    make -j$(nproc) && make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/svt-av1.conf && \
+    ldconfig
+
 
 # ── dav1d (AV1 decoder) ──────────────────────────────────────────
 RUN git clone --depth 1 -b 1.5.0 https://github.com/videolan/dav1d.git && \
     cd dav1d && \
     meson setup build --prefix=/usr/local --default-library=static --buildtype=release && \
-    ninja -C build && ninja -C build install
+    ninja -C build && ninja -C build install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/dav1d.conf && \
+    ldconfig
+
 
 # ── libvpx (VP9) ─────────────────────────────────────────────────
 RUN git clone --depth 1 -b v1.15.0 https://chromium.googlesource.com/webm/libvpx.git && \
@@ -72,7 +86,10 @@ RUN git clone --depth 1 -b v1.15.0 https://chromium.googlesource.com/webm/libvpx
         --enable-static --disable-shared \
         --enable-vp9-highbitdepth \
         --disable-examples --disable-unit-tests --disable-docs && \
-    make -j$(nproc) && make install
+    make -j$(nproc) && make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/libvpx.conf && \
+    ldconfig
 
     # Build vvenc
 RUN git clone https://github.com/fraunhoferhhi/vvenc.git vvenc && \
@@ -83,34 +100,40 @@ RUN git clone https://github.com/fraunhoferhhi/vvenc.git vvenc && \
     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF && \
     make -j$(nproc) && \
     make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/vvenc.conf && \
     ldconfig
 
     # Build xeve
-# RUN git clone https://github.com/mpeg5/xeve && \
-#     cd xeve && \
-#     git checkout tags/$XEVE_TAG && \
-#     mkdir build && \
-#     cd build && \
-#     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_SHARED=OFF&& \
-#     make -j$(nproc) && \
-#     make install && \
-#     ldconfig && \
-#     make package && \
-#      ldconfig
+RUN git clone https://github.com/mpeg5/xeve && \
+    cd xeve && \
+    git checkout tags/$XEVE_TAG && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_SHARED=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    make package && \
+    dpkg -i /build/xeve/build/xeve-main_0.5.1_amd64.deb && \
+    dpkg -i /build/xeve/build/xeve-main-dev_0.5.1_amd64.deb && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/xeve.conf && \
+    cd /build && ldconfig 
 
-# # Build xevd
-# RUN git clone https://github.com/mpeg5/xevd.git && \
-#     cd xevd && \
-#     git checkout tags/$XEVD_TAG && \
-#     mkdir build && \
-#     cd build && \
-#     cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_SHARED=OFF && \
-#     make -j$(nproc) && \
-#     make install && \
-#     ldconfig && \
-#     make package && \
-#     ldconfig
-# RUN echo "/usr/local/lib" > /etc/ld.so.conf.d/xevd.conf && ldconfig
+# Build xevd
+RUN git clone https://github.com/mpeg5/xevd.git && \
+    cd xevd && \
+    git checkout tags/$XEVD_TAG && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DENABLE_SHARED=OFF -DCMAKE_POSITION_INDEPENDENT_CODE=ON && \
+    make -j$(nproc) && \
+    make install && \
+    ldconfig && \
+    make package && \
+    dpkg -i /build/xevd/build/xevd-main_0.5.0_amd64.deb && \
+    dpkg -i /build/xevd/build/xevd-main-dev_0.5.0_amd64.deb && \
+    cd /build
 
 RUN wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.bz2 && \
     tar xjvf nasm-2.16.03.tar.bz2 && \
@@ -118,7 +141,10 @@ RUN wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.bz2
     ./autogen.sh && \
     ./configure --prefix="/usr" && \
     make -j$(nproc) && \
-    make install
+    make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/nasm.conf && \
+    ldconfig
 
 
 
@@ -134,7 +160,8 @@ RUN git clone --depth 1 -b v3.0.0 https://github.com/Netflix/vmaf.git && \
         --default-library=static \
         --buildtype=release \
         -Dbuilt_in_models=true && \
-    ninja -C build && ninja -C build install && ldconfig
+    ninja -C build && ninja -C build install && ldconfig && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/libvmaf.conf && ldconfig && cd /build
 
 # RUN git clone https://github.com/Netflix/vmaf.git && \
 #       cd vmaf/libvmaf &&  git checkout 7e16db0a2ccdd8547680b9ed0b3e52691e8ecee7 \
@@ -162,7 +189,11 @@ RUN git clone --depth 1 -b v1.5.2 https://github.com/xiph/opus.git && \
     cd opus && \
     autoreconf -fis && \
     ./configure --prefix=/usr/local --enable-static --disable-shared --disable-doc --disable-extra-programs && \
-    make -j$(nproc) && make install
+    make -j$(nproc) && make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/opus.conf && \
+    ldconfig
+
 ENV PKG_CONFIG_PATH="/usr/local/lib/x86_64-linux-gnu/pkgconfig:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 # ── FFmpeg ────────────────────────────────────────────────────────
 RUN git clone --depth 1 -b n8.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-src && \
@@ -183,16 +214,20 @@ RUN git clone --depth 1 -b n8.0.1 https://github.com/FFmpeg/FFmpeg.git ffmpeg-sr
         --enable-libvpx \
         --enable-libvmaf \
         --enable-libopus \
-        --disable-doc \
+          --disable-doc \
         --disable-htmlpages \
         --disable-manpages \
         --disable-podpages \
         --disable-txtpages \
         --extra-cflags="-I/usr/local/include" \
         --extra-ldflags="-L/usr/local/lib -L/usr/local/lib/x86_64-linux-gnu -L/usr/local/lib/aarch64-linux-gnu" \
-        --extra-libs="-lpthread -lm -lstdc++" \
+        --extra-libs="-lpthread -lm -lstdc++ -lpthread -lm -lstdc++ -lxeve" \
         --pkg-config-flags="--static" && \
-    make -j$(nproc) && make install
+    make -j$(nproc) && make install && \
+    cd /build && \
+    echo "/usr/local/lib" > /etc/ld.so.conf.d/ffmpeg.conf && \
+    ldconfig
+
 
 # Verify the build
 RUN ffmpeg -version && \
@@ -215,5 +250,6 @@ ENV VMAF_MODEL_PATH=./usr/local/share/vmaf/models/vmaf_v0.6.1.json
 COPY --from=build /usr/local/bin/ffmpeg /ffmpeg
 COPY --from=build /usr/local/bin/ffprobe /ffprobe
 COPY --from=build /usr/local/share/vmaf/models/ /usr/local/share/vmaf/models/
-COPY --from=build /usr/local/lib/libxevd.so* /usr/local/lib/
+# COPY --from=build /usr/local/lib/libxeve.so.0 /usr/local/lib/libxeve.so.0
+# COPY --from=build /usr/local/lib/libxevd.so.0   /usr/local/lib/libxevd.so.0 
 #COPY --from=build /usr /usr

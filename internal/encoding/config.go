@@ -107,6 +107,29 @@ func PresetForCodec(codec ffmpeg.Codec, preset string) string {
 		default:
 			return preset
 		}
+	case ffmpeg.CodecXEVE:
+    switch preset {
+    case "ultrafast":
+        return "0"
+    case "superfast":
+        return "1"
+    case "veryfast":
+        return "2"
+    case "faster":
+        return "3"
+    case "fast":
+        return "4"
+    case "medium":
+        return "5"
+    case "slow":
+        return "7"
+    case "slower":
+        return "9"
+    case "veryslow":
+        return "10"
+    default:
+        return preset
+    }
 	case ffmpeg.CodecVVENC:
 		switch preset {
 		case "ultrafast", "superfast":
