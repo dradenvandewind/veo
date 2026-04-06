@@ -52,6 +52,7 @@ func MobileProfile() Profile {
 		Codecs: []ffmpeg.Codec{
 			ffmpeg.CodecSVTAV1, // best efficiency for bandwidth-constrained mobile
 			ffmpeg.CodecX264,   // fallback for older devices
+			ffmpeg.CodecVVENC,  // good mobile performance, but less efficient than SVT-AV1
 		},
 		LadderOpts: ladder.Opts{
 			NumRungs:   4,
@@ -81,6 +82,7 @@ func DesktopProfile() Profile {
 			ffmpeg.CodecSVTAV1,
 			ffmpeg.CodecX265,
 			ffmpeg.CodecX264,
+			ffmpeg.CodecVVENC, // good desktop performance, but less efficient than SVT-AV1 and x265
 		},
 		LadderOpts: ladder.Opts{
 			NumRungs:   6,
@@ -110,6 +112,7 @@ func TVProfile() Profile {
 			ffmpeg.CodecSVTAV1,
 			ffmpeg.CodecX265,
 			ffmpeg.CodecX264,
+			ffmpeg.CodecVVENC, // good TV performance, but less efficient than SVT-AV1 and x265
 		},
 		LadderOpts: ladder.Opts{
 			NumRungs:   8,
@@ -139,6 +142,7 @@ func TV4KProfile() Profile {
 		Codecs: []ffmpeg.Codec{
 			ffmpeg.CodecSVTAV1,
 			ffmpeg.CodecX265,
+			ffmpeg.CodecVVENC, // good 4K TV performance, but less efficient than SVT-AV1 and x265
 		},
 		LadderOpts: ladder.Opts{
 			NumRungs:   8,
