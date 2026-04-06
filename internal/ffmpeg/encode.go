@@ -268,6 +268,8 @@ func buildEncodeArgs(job EncodeJob) []string {
 			fmt.Sprintf("scale=%d:%d:flags=lanczos", job.Resolution.Width, job.Resolution.Height))
 	}
 
+	args = append(args, "-threads", "8") // auto-detect number of threads
+
 	args = append(args, job.ExtraArgs...)
 	args = append(args, job.Output)
 
