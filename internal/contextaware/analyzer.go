@@ -3,6 +3,9 @@ package contextaware
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/terranvigil/veo/internal/encoding"
@@ -20,6 +23,21 @@ type Config struct {
 	Parallel  int       // max parallel encodes
 }
 
+
+
+func defaultParallel() int {
+	if v := os.Getenv("PARALLEL"); v != "" {
+		if i, err := strconv.Atoi(v); err == nil && i > 0 {
+			return i
+		}
+	}
+
+	n := runtime.NumCPU()
+	return max(2, min(n/2, 16))
+}
+
+
+
 // DefaultConfig returns sensible defaults.
 func DefaultConfig() Config {
 	return Config{
@@ -27,7 +45,7 @@ func DefaultConfig() Config {
 		CRFValues: []int{18, 22, 26, 30, 34, 38, 42},
 		Preset:    "veryfast",
 		Subsample: 5,
-		Parallel:  2,
+		Parallel:  defaultParallel(),
 	}
 }
 

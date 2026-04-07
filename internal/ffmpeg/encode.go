@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -267,8 +268,9 @@ func buildEncodeArgs(job EncodeJob) []string {
 		args = append(args, "-vf",
 			fmt.Sprintf("scale=%d:%d:flags=lanczos", job.Resolution.Width, job.Resolution.Height))
 	}
+	cpuCount := runtime.NumCPU()
 
-	args = append(args, "-threads", "8") // auto-detect number of threads
+	args = append(args, "-threads", strconv.Itoa(cpuCount)) // auto-detect number of threads
 
 	args = append(args, job.ExtraArgs...)
 	args = append(args, job.Output)
