@@ -26,6 +26,9 @@ type Config struct {
 	Encode          pertitle.VideoEncoder    `json:"-"`
 	Probe           pertitle.VideoProber     `json:"-"`
 	Measure         pertitle.QualityMeasurer `json:"-"`
+	CheckpointPath  string                   `json:"checkpoint_path,omitempty"`
+	VMAFModel       string                   `json:"vmaf_model,omitempty"` // VMAF model override (e.g. "vmaf_4k_v0.6.1")
+
 }
 
 // DefaultConfig returns sensible defaults for per-shot analysis.
@@ -43,6 +46,8 @@ type ShotResult struct {
 	Shot   shot.Shot    `json:"shot"`
 	Points []hull.Point `json:"points"`
 	Hull   *hull.Hull   `json:"hull"`
+	PerCodec   map[ffmpeg.Codec]*hull.Hull `json:"per_codec_hulls"`
+    Ladder     *ladder.Ladder              `json:"ladder"`
 }
 
 type Result struct {
@@ -125,6 +130,8 @@ func Analyze(ctx context.Context, source string, cfg Config, progress chan<- Pro
 			Shot:   s,
 			Points: shotAnalysis.Points,
 			Hull:   shotAnalysis.Hull,
+			PerCodec: shotAnalysis.PerCodec,
+
 		})
 		totalTrials += shotAnalysis.TrialCount
 

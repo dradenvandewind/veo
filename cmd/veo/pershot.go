@@ -4,14 +4,16 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
-
+	"github.com/terranvigil/veo/internal/chart"
 	"github.com/terranvigil/veo/internal/encoding"
 	"github.com/terranvigil/veo/internal/ffmpeg"
+	"github.com/terranvigil/veo/internal/hull"
 	"github.com/terranvigil/veo/internal/ladder"
 	"github.com/terranvigil/veo/internal/pershot"
 	"github.com/terranvigil/veo/internal/shot"
@@ -34,6 +36,8 @@ var (
 	psSubsample   int
 	psParallel    int
 	psTargetBR    float64
+	ptChartDirShot    string
+	ptCheckpointShot  string
 )
 
 var pershotDetectCmd = &cobra.Command{
@@ -68,6 +72,9 @@ func init() {
 	pershotAnalyzeCmd.Flags().IntVar(&psParallel, "parallel", 2, "max parallel encodes")
 	pershotAnalyzeCmd.Flags().Float64Var(&psTargetBR, "target-bitrate", 2000, "target average bitrate (kbps) for Trellis optimization")
 	mustMarkRequired(pershotAnalyzeCmd, "input")
+
+	pershotAnalyzeCmd.Flags().StringVar(&ptChartDirShot, "charts", "", "directory to save PNG chart images (optional)")
+	pershotAnalyzeCmd.Flags().StringVar(&ptCheckpointShot, "checkpoint", "", "checkpoint file for resuming analysis (optional)")
 
 	pershotCmd.AddCommand(pershotDetectCmd)
 	pershotCmd.AddCommand(pershotAnalyzeCmd)
@@ -125,10 +132,11 @@ func runPershotAnalyze(cmd *cobra.Command, args []string) error {
 			MinDuration: durFromSeconds(psMinDur),
 		},
 		LadderOpts: ladder.DefaultOpts(),
+		CheckpointPath: ptCheckpointShot,
 	}
 
 	fmt.Println("╔══════════════════════════════════════════╗")
-	fmt.Println("║        VEO Per-Shot Analysis             ║")
+	fmt.Println("║         Per-Shot Analysis                ║")
 	fmt.Println("╚══════════════════════════════════════════╝")
 	fmt.Println()
 	fmt.Printf("  Source:      %s\n", psInput)
@@ -189,6 +197,74 @@ func runPershotAnalyze(cmd *cobra.Command, args []string) error {
 			fmt.Printf("\n    Weighted avg: %.0f kbps (target: %.0f)\n", totalWeighted/totalDur, psTargetBR)
 		}
 	}
+
+		// lGenerate charts if requested
+	if ptChartDirShot != "" {
+		if err := os.MkdirAll(ptChartDirShot, 0o755); err != nil {
+			return fmt.Errorf("failed to create chart directory: %w", err)
+		}
+
+		// lR-D curve with hull
+		rdData, err := chart.RDCurve(result.Shots[0].Hull.Points, result.Shots[0].Hull, chart.Opts{
+			Title: fmt.Sprintf("R-D Curve: %s", filepath.Base(ptInput)),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to generate R-D chart: %w", err)
+		}
+		rdPath := ptChartDirShot + "/rd-curve.png"
+		if err := chart.SavePNG(rdData, rdPath); err != nil {
+			return fmt.Errorf("failed to save R-D chart: %w", err)
+		}
+		fmt.Printf("\nChart: %s\n", rdPath)
+
+		// lPer-codec comparison (if multiple codecs)
+		if len(result.Shots[0].PerCodec) > 1 {
+			// lCompute BD-Rate for chart annotation
+			var bdRateVal float64
+			codecList := make([]ffmpeg.Codec, 0, len(result.Shots[0].PerCodec))
+			for c := range result.Shots[0].PerCodec {
+				codecList = append(codecList, c)
+			}
+			if len(codecList) >= 2 {
+				//bdRateVal, _ = hull.BDRate(result.Shots[0].PerCodec[codecList[0]].Points, result.Shots[0].PerCodec[codecList[1]].Points)
+				c0 := result.Shots[0].PerCodec[codecList[0]]
+				c1 := result.Shots[0].PerCodec[codecList[1]]
+				// Guard: both hulls must have at least 2 points for BD-Rate
+				if c0 != nil && c1 != nil && len(c0.Points) >= 2 && len(c1.Points) >= 2 {
+					bdRateVal, _ = hull.BDRate(c0.Points, c1.Points)
+				}
+			}
+
+			codecData, err := chart.PerCodecRDCurve(result.Shots[0].PerCodec, bdRateVal, chart.Opts{
+				Title: fmt.Sprintf("Codec Comparison: %s", filepath.Base(ptInput)),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to generate codec chart: %w", err)
+			}
+			codecPath := ptChartDirShot + "/codec-comparison.png"
+			if err := chart.SavePNG(codecData, codecPath); err != nil {
+				return fmt.Errorf("failed to save codec chart: %w", err)
+			}
+			fmt.Printf("Chart: %s\n", codecPath)
+		}
+
+		// lLadder bar chart
+		// Ladder bar chart
+		if result.Shots[0].Ladder != nil && len(result.Shots[0].Ladder.Rungs) > 0 {
+			ladderData, err := chart.LadderChart(result.Shots[0].Ladder, chart.Opts{
+				Title: fmt.Sprintf("Bitrate Ladder: %s", filepath.Base(ptInput)),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to generate ladder chart: %w", err)
+			}
+			ladderPath := filepath.Join(ptChartDirShot, "ladder.png")
+			if err := chart.SavePNG(ladderData, ladderPath); err != nil {
+				return fmt.Errorf("failed to save ladder chart: %w", err)
+			}
+			fmt.Printf("Chart: %s\n", ladderPath)
+		}
+	}
+
 
 	fmt.Println()
 	return nil
