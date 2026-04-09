@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -58,6 +59,7 @@ func init() {
 	pershotDetectCmd.Flags().StringVarP(&psInput, "input", "i", "", "source video file")
 	pershotDetectCmd.Flags().Float64Var(&psThreshold, "threshold", 10.0, "scene change threshold (0-100, lower = more sensitive, default 10)")
 	pershotDetectCmd.Flags().Float64Var(&psMinDur, "min-duration", 0.5, "minimum shot duration in seconds")
+	pershotDetectCmd.Flags().StringVarP(&psOutput, "json-output", "j", "", "output JSON file (optional, defaults to <input>_shots.json)")
 	mustMarkRequired(pershotDetectCmd, "input")
 
 	pershotAnalyzeCmd.Flags().StringVarP(&psInput, "input", "i", "", "source video file")
@@ -65,8 +67,8 @@ func init() {
 	pershotAnalyzeCmd.Flags().Float64Var(&psThreshold, "threshold", 10.0, "scene change threshold")
 	pershotAnalyzeCmd.Flags().Float64Var(&psMinDur, "min-duration", 0.5, "minimum shot duration (seconds)")
 	pershotAnalyzeCmd.Flags().StringSliceVar(&psCodecs, "codecs", []string{"libx264"}, "codecs to test")
-	pershotAnalyzeCmd.Flags().StringSliceVar(&psResolutions, "resolutions", []string{"480p", "720p", "1080p"}, "resolutions to test")
-	pershotAnalyzeCmd.Flags().IntSliceVar(&psCRFValues, "crf-values", []int{22, 26, 30, 34, 38}, "CRF values to test")
+	pershotAnalyzeCmd.Flags().StringSliceVar(&psResolutions, "resolutions", []string{"360p", "480p", "720p", "1080p"}, "resolutions to test")
+	pershotAnalyzeCmd.Flags().IntSliceVar(&psCRFValues, "crf-values", []int{18, 22, 26, 30, 34, 38, 42}, "CRF values to test")
 	pershotAnalyzeCmd.Flags().StringVar(&psPreset, "preset", "veryfast", "encoding preset")
 	pershotAnalyzeCmd.Flags().IntVar(&psSubsample, "subsample", 5, "VMAF frame subsampling")
 	pershotAnalyzeCmd.Flags().IntVar(&psParallel, "parallel", 2, "max parallel encodes")
@@ -82,30 +84,70 @@ func init() {
 }
 
 func runPershotDetect(cmd *cobra.Command, args []string) error {
-	opts := shot.DetectOpts{
-		Threshold:   psThreshold,
-		MinDuration: durFromSeconds(psMinDur),
-	}
+    opts := shot.DetectOpts{
+        Threshold:   psThreshold,
+        MinDuration: durFromSeconds(psMinDur),
+    }
+    fmt.Printf("Detecting shots: %s (threshold=%.2f, min=%.1fs)\n\n", psInput, psThreshold, psMinDur)
+    shots, err := shot.Detect(context.Background(), psInput, opts)
+    if err != nil {
+        return fmt.Errorf("shot detection failed: %w", err)
+    }
+    fmt.Printf("Found %d shots:\n\n", len(shots))
 
-	fmt.Printf("Detecting shots: %s (threshold=%.2f, min=%.1fs)\n\n", psInput, psThreshold, psMinDur)
+    w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+    _, _ = fmt.Fprintf(w, "  #\tStart\tEnd\tDuration\n")
+    _, _ = fmt.Fprintf(w, "  -\t-----\t---\t--------\n")
+    for _, s := range shots {
+        _, _ = fmt.Fprintf(w, "  %d\t%.2fs\t%.2fs\t%.2fs\n",
+            s.Index+1, s.Start.Seconds(), s.End.Seconds(), s.Duration.Seconds())
+    }
+    _ = w.Flush()
 
-	shots, err := shot.Detect(context.Background(), psInput, opts)
-	if err != nil {
-		return fmt.Errorf("shot detection failed: %w", err)
-	}
+    // Build JSON output
+    type Timecode struct {
+        Start    float64 `json:"start"`
+        Stop     float64 `json:"stop"`
+        Duration float64 `json:"duration"`
+    }
+    type Segment struct {
+        SegmentID string   `json:"segment_id"`
+        Timecode  Timecode `json:"timecode"`
+    }
 
-	fmt.Printf("Found %d shots:\n\n", len(shots))
-	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "  #\tStart\tEnd\tDuration\n")
-	_, _ = fmt.Fprintf(w, "  -\t-----\t---\t--------\n")
-	for _, s := range shots {
-		_, _ = fmt.Fprintf(w, "  %d\t%.2fs\t%.2fs\t%.2fs\n",
-			s.Index+1, s.Start.Seconds(), s.End.Seconds(), s.Duration.Seconds())
-	}
-	_ = w.Flush()
+    segments := make([]Segment, 0, len(shots))
+    for _, s := range shots {
+        segments = append(segments, Segment{
+            SegmentID: fmt.Sprintf("seg_%04d", s.Index+1),
+            Timecode: Timecode{
+                Start:    s.Start.Seconds(),
+                Stop:     s.End.Seconds(),
+                Duration: s.Duration.Seconds(),
+            },
+        })
+    }
 
-	return nil
+    out, err := json.MarshalIndent(segments, "", "  ")
+    if err != nil {
+        return fmt.Errorf("json marshal failed: %w", err)
+    }
+
+    // stdout
+    fmt.Printf("\n%s\n", out)
+
+    // side-car path : flag --json-output ou fallback automatique
+    sidecar := psOutput
+    if sidecar == "" {
+        sidecar = strings.TrimSuffix(psInput, filepath.Ext(psInput)) + "_shots.json"
+    }
+    if err := os.WriteFile(sidecar, out, 0644); err != nil {
+        return fmt.Errorf("writing sidecar json failed: %w", err)
+    }
+    fmt.Printf("\nJSON written to: %s\n", sidecar)
+
+    return nil
 }
+
 
 func runPershotAnalyze(cmd *cobra.Command, args []string) error {
 	resolutions, err := parseResolutions(psResolutions)
@@ -126,6 +168,7 @@ func runPershotAnalyze(cmd *cobra.Command, args []string) error {
 			Preset:      psPreset,
 			Subsample:   psSubsample,
 			Parallel:    psParallel,
+			RateControl: ffmpeg.RateControlMode(ptMode),
 		},
 		ShotOpts: shot.DetectOpts{
 			Threshold:   psThreshold,
