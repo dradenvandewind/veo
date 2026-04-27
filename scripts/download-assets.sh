@@ -253,6 +253,7 @@ download_netflix() {
 }
 
 # Download UVG 4K sequence (raw YUV)
+
 download_uvg() {
     local name="$1"
     local fps="$2"
@@ -266,7 +267,7 @@ download_uvg() {
     fi
 
     # UVG provides 7z archives
-    local archive="${name}_3840x2160_${fps}fps_420_8bit.7z"
+    local archive="${name}_3840x2160_${fps}fps_420_8bit_YUV_RAW.7z"
     download "$UVG_BASE/$archive" "$output_dir/$archive"
 
     if [[ -f "$output_dir/$archive" ]] && ! $DRY_RUN; then
@@ -280,6 +281,8 @@ download_uvg() {
         fi
     fi
 }
+
+
 
 # ── Tier definitions ──────────────────────────────────────────────
 
