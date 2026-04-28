@@ -227,7 +227,12 @@ download_netflix() {
     local output_dir="$ASSETS_DIR/netflix"
     local output_path="$output_dir/$scene_name"
 
-    if [[ -d "$output_path" ]] || [[ -f "$output_path" ]]; then
+    if [[ -z "$scene_name" || -z "$s3_path" ]]; then
+        warn "Usage: download_netflix <scene_name> <s3_path>"
+        return 1
+    fi
+
+    if [[ -f "$output_path" ]]; then
         log "Already exists: netflix/$scene_name"
         return 0
     fi
@@ -239,17 +244,20 @@ download_netflix() {
         return 0
     fi
 
-    if $USE_S3; then
-        log "Downloading Netflix: $scene_name"
-        aws s3 cp --no-sign-request --recursive \
-            "$NETFLIX_S3/$s3_path" "$output_path" || {
-            warn "Failed to download Netflix $scene_name (requires AWS CLI)"
-            return 1
-        }
-    else
-        warn "Netflix content requires AWS CLI. Install it with: brew install awscli"
+    if ! command -v aws &>/dev/null; then
+        warn "AWS CLI not found. Install it with: brew install awscli"
         return 1
     fi
+
+    log "Downloading Netflix: $scene_name"
+    aws s3 cp --no-sign-request \
+        "s3://download.opencontent.netflix.com/$s3_path" \
+        "$output_path" || {
+        warn "Failed to download Netflix: $scene_name"
+        return 1
+    }
+
+    log "Done: $output_path"
 }
 
 # Download UVG 4K sequence (raw YUV)
@@ -318,8 +326,9 @@ tier_medium() {
     download_xiph "FourPeople_1280x720_60" "hd" "FourPeople_720p60"
 
     # Netflix — one challenging scene
-    download_netflix "Chimera_DinnerScene" \
-        "Chimera/Chimera_DinnerScene_4096x2160_59.94_10bit_420_hdr_bt2020_pq"
+
+    download_netflix "Chimera-DinnerScene_3840x2160_2997fps_10bit_420.yuv"      "Netflix_test_conditions/Chimera-DinnerScene_3840x2160_2997fps_10bit_420.yuv"
+
 }
 
 tier_large() {
@@ -344,12 +353,13 @@ tier_large() {
     download_uvg "ShakeNDry" "120"
 
     # Netflix — more scenes
-    download_netflix "Chimera_BarScene" \
-        "Chimera/Chimera_BarScene_4096x2160_59.94_10bit_420_hdr_bt2020_pq"
-    download_netflix "Chimera_Aerial" \
-        "Chimera/Chimera_Aerial_4096x2160_59.94_10bit_420_hdr_bt2020_pq"
-    download_netflix "ElFuente_FoodMarket" \
-        "ElFuente/ElFuente_FoodMarket_4096x2160_59.94_10bit_420"
+    download_netflix "Chimera-Aerial_3840x2160_2997fps_10bit_420.yuv"           "Netflix_test_conditions/Chimera-Aerial_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "Chimera-BarScene1_3840x2160_2997fps_10bit_420.yuv"        "Netflix_test_conditions/Chimera-BarScene1_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "Chimera-BarScene2_3840x2160_2997fps_10bit_420.yuv"        "Netflix_test_conditions/Chimera-BarScene2_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "ElFuente-FoodMarket2_3840x2160_60fps_10bit_420.yuv"       "Netflix_test_conditions/ElFuente-FoodMarket2_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-FoodMarket_3840x2160_60fps_10bit_420.yuv"        "Netflix_test_conditions/ElFuente-FoodMarket_3840x2160_60fps_10bit_420.yuv"
+
+
 }
 
 tier_full() {
@@ -371,14 +381,29 @@ tier_full() {
     download_uvg "Twilight" "50"
 
     # More Netflix
-    download_netflix "ElFuente_Tango" \
-        "ElFuente/ElFuente_Tango_4096x2160_59.94_10bit_420"
-    download_netflix "ElFuente_BoxingPractice" \
-        "ElFuente/ElFuente_BoxingPractice_4096x2160_59.94_10bit_420"
-    download_netflix "Chimera_WindAndNature" \
-        "Chimera/Chimera_WindAndNature_4096x2160_59.94_10bit_420_hdr_bt2020_pq"
-    download_netflix "Chimera_RollerCoaster" \
-        "Chimera/Chimera_RollerCoaster_4096x2160_59.94_10bit_420_hdr_bt2020_pq"
+    # Chimera
+    download_netflix "Chimera-DrivingPOV_3840x2160_2997fps_10bit_420.yuv"       "Netflix_test_conditions/Chimera-DrivingPOV_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "Chimera-Freeway_3840x2160_2398fps_10bit_420.yuv"          "Netflix_test_conditions/Chimera-Freeway_3840x2160_2398fps_10bit_420.yuv"
+    download_netflix "Chimera-PierSeaside_3840x2160_2997fps_10bit_420.yuv"      "Netflix_test_conditions/Chimera-PierSeaside_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "Chimera-RollerCoasterPassengers_3840x2160_2997fps_10bit_420.yuv" "Netflix_test_conditions/Chimera-RollerCoasterPassengers_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "Chimera-ToddlerFountain_3840x2160_2997fps_10bit_420.yuv"  "Netflix_test_conditions/Chimera-ToddlerFountain_3840x2160_2997fps_10bit_420.yuv"
+    download_netflix "Chimera-WindAndNature_3840x2160_2997fps_10bit_420.yuv"    "Netflix_test_conditions/Chimera-WindAndNature_3840x2160_2997fps_10bit_420.yuv"
+
+    # ElFuente
+    download_netflix "ElFuente-Boat_3840x2160_60fps_10bit_420.yuv"              "Netflix_test_conditions/ElFuente-Boat_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-BoxingPractice_3840x2160_60fps_10bit_420.yuv"    "Netflix_test_conditions/ElFuente-BoxingPractice_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-Crosswalk_3840x2160_60fps_10bit_420.yuv"         "Netflix_test_conditions/ElFuente-Crosswalk_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-Narrator_3840x2160_60fps_10bit_420.yuv"          "Netflix_test_conditions/ElFuente-Narrator_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-RitualDance_3840x2160_60fps_10bit_420.yuv"       "Netflix_test_conditions/ElFuente-RitualDance_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-Tango_3840x2160_60fps_10bit_420.yuv"             "Netflix_test_conditions/ElFuente-Tango_3840x2160_60fps_10bit_420.yuv"
+    download_netflix "ElFuente-TunnelFlag_3840x2160_60fps_10bit_420.yuv"        "Netflix_test_conditions/ElFuente-TunnelFlag_3840x2160_60fps_10bit_420.yuv"
+
+    # Sintel
+    download_netflix "Sintel-Dragons_3840x1632_24fps_10bit_420.yuv"             "Netflix_test_conditions/Sintel-Dragons_3840x1632_24fps_10bit_420.yuv"
+    download_netflix "Sintel-Weapon_3840x1632_24fps_10bit_420.yuv"              "Netflix_test_conditions/Sintel-Weapon_3840x1632_24fps_10bit_420.yuv"
+
+    # Sparks
+    download_netflix "Sparks-Sunrise_4096x2160_60fps_10b_420.yuv"              "Netflix_test_conditions/Sparks-Sunrise_4096x2160_60fps_10b_420.yuv"
 
     # AWCY full set
     download_awcy "objective-1"
